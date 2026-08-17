@@ -54,7 +54,7 @@ def summarize_with_gemini(raw_text):
     
     [출력 규칙]
     - 뉴스 제목은 자연스러운 한국어로 번역할 것
-    - 핵심 내용을 5줄로 요약할 것
+    - 핵심 내용을 3~4줄로 요약할 것
     - 기술적 맥락(공격 유형, 영향도)을 명확히 전달할 것
     """
     response = client.models.generate_content(
