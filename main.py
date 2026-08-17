@@ -59,7 +59,7 @@ def summarize_with_gemini(raw_text):
     - 기술적 맥락(공격 유형, 영향도)을 명확히 전달할 것
     """
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-3.5-flash',
         contents=prompt
     )
     return response.text
