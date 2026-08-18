@@ -6,6 +6,7 @@ from google import genai
 # 환경 변수 설정
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+RANSOMWARE_API_KEY = os.environ.get("RANSOMWARE_API_KEY")  # 1. API 키 환경 변수 추가
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -55,12 +56,18 @@ def fetch_cisa_kev():
         print(f"[!] CISA KEV 수집 실패: {e}")
         return []
 
-# 3. Ransomware.live 5개 수집 (GET 방식)
-# ransomware API는 분당 1개만 가능
+# 3. Ransomware.live 5개 수집 (API PRO 기준)
 def fetch_ransomware_activity():
-    url = "https://api.ransomware.live/v2/recent"
+    if not RANSOMWARE_API_KEY:
+        print("[!] RANSOMWARE_API_KEY 환경 변수가 설정되지 않았습니다.")
+        return []
+
+    # API PRO 최신 엔드포인트
+    url = "https://api-pro.ransomware.live/victims/recent?order=discovered"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "accept": "application/json",
+        "X-API-KEY": RANSOMWARE_API_KEY  # 인증 헤더 추가
     }
 
     try:
@@ -72,11 +79,11 @@ def fetch_ransomware_activity():
         for item in data[:5]:
             parsed_victims.append({
                 "group": item.get("group", "Unknown"),
-                "victim": item.get("post_title", item.get("victim", "Unknown")),
+                "victim": item.get("victim", "Unknown"),
                 "country": item.get("country", "N/A"),
                 "activity": item.get("activity", "N/A"),
                 "discovered": item.get("discovered", item.get("attackdate", "N/A")),
-                "website": item.get("website", item.get("domain", ""))
+                "website": item.get("website", "")
             })
         return parsed_victims
 
