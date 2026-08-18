@@ -62,12 +62,11 @@ def fetch_ransomware_activity():
         print("[!] RANSOMWARE_API_KEY 환경 변수가 설정되지 않았습니다.")
         return []
 
-    # API PRO 최신 엔드포인트
     url = "https://api-pro.ransomware.live/victims/recent?order=discovered"
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         "accept": "application/json",
-        "X-API-KEY": RANSOMWARE_API_KEY  # 인증 헤더 추가
+        "X-API-KEY": RANSOMWARE_API_KEY.strip()
     }
 
     try:
@@ -75,8 +74,12 @@ def fetch_ransomware_activity():
         res.raise_for_status()
         data = res.json()
 
+        # API PRO 응답 구조: {'client': '...', 'count': 100, 'victims': [...]}
+        # victims 키에서 리스트 데이터 추출
+        victims_list = data.get("victims", []) if isinstance(data, dict) else data
+
         parsed_victims = []
-        for item in data[:5]:
+        for item in victims_list[:5]:
             parsed_victims.append({
                 "group": item.get("group", "Unknown"),
                 "victim": item.get("victim", "Unknown"),
