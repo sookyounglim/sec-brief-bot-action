@@ -2,6 +2,8 @@ import os
 import feedparser
 import requests
 from google import genai
+import time
+from google.genai import errors
 
 # 환경 변수 설정
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -112,11 +114,26 @@ def summarize_section(category_title, raw_data):
     - 읽기 편하도록 적절한 이모티콘을 사용할 것
     - 총 길이는 1,000자 이내로 작성할 것
     """
+    last_err = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            chat = client.chats.create(model='gemini-3.5-flash')
+            response = chat.send_message(prompt)
+            return response.text
+        except errors.ServerError as e:
+            last_err = e
+            wait = min(60, 5 * (2 ** (attempt - 1)))  # 5, 10, 20, 40, ... 최대 60초
+            print(f"[!] [{category_title}] Gemini 호출 실패 (시도 {attempt}/{max_retries}): {e}. {wait}초 후 재시도")
+            time.sleep(wait)
+        except errors.APIError as e:
+            # 429 Too Many Requests 등도 같이 재시도하고 싶으면 여기서 처리
+            last_err = e
+            wait = min(60, 5 * (2 ** (attempt - 1)))
+            print(f"[!] [{category_title}] Gemini API 오류 (시도 {attempt}/{max_retries}): {e}. {wait}초 후 재시도")
+            time.sleep(wait)
 
-    chat = client.chats.create(model='gemini-3.5-flash')
-    response = chat.send_message(prompt)
-
-    return response.text
+    print(f"[!] [{category_title}] 최종 실패: {last_err}")
+    return f"⚠️ Gemini API 과부하로 이번 회차 요약 생성에 실패했습니다. (원본 데이터 {len(raw_data)}건 수집됨)"
 
 # 5. 디스코드 Webhook 메시지 분할 전송 (1,900자 초과 시 자동 연속 전송)
 def send_discord_message(title, content, color):
@@ -157,16 +174,25 @@ def send_discord_message(title, content, color):
 # 6. 메인 실행 프로세스
 if __name__ == "__main__":
     # 1) 주요 보안 뉴스 (메시지 1)
-    news_data = fetch_rss_news()
-    news_summary = summarize_section("주요 보안 뉴스", news_data)
-    send_discord_message("🚨 오늘의 주요 보안 뉴스 요약", news_summary, 3447003)
+    try:
+        news_data = fetch_rss_news()
+        news_summary = summarize_section("주요 보안 뉴스", news_data)
+        send_discord_message("🚨 오늘의 주요 보안 뉴스 요약", news_summary, 3447003)
+    except Exception as e:
+        print(f"[!] 뉴스 섹션 처리 중 오류: {e}")
 
     # 2) CISA KEV (메시지 2)
-    kev_data = fetch_cisa_kev()
-    kev_summary = summarize_section("CISA KEV 취약점", kev_data)
-    send_discord_message("🔥 CISA KEV (실제 악용 확인된 취약점)", kev_summary, 15158332)
+    try:
+        kev_data = fetch_cisa_kev()
+        kev_summary = summarize_section("CISA KEV 취약점", kev_data)
+        send_discord_message("🔥 CISA KEV (실제 악용 확인된 취약점)", kev_summary, 15158332)
+    except Exception as e:
+        print(f"[!] KEV 섹션 처리 중 오류: {e}")
 
     # 3) 랜섬웨어 동향 (메시지 3)
-    ransom_data = fetch_ransomware_activity()
-    ransom_summary = summarize_section("랜섬웨어 최신 피해 사례", ransom_data)
-    send_discord_message("☠️ Ransomware.live 최신 감염 동향", ransom_summary, 10038562)
+    try:
+        ransom_data = fetch_ransomware_activity()
+        ransom_summary = summarize_section("랜섬웨어 최신 피해 사례", ransom_data)
+        send_discord_message("☠️ Ransomware.live 최신 감염 동향", ransom_summary, 10038562)
+    except Exception as e:
+        print(f"[!] 랜섬웨어 섹션 처리 중 오류: {e}")
