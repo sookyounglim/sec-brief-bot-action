@@ -97,7 +97,7 @@ def fetch_ransomware_activity():
         return []
 
 # 4. 섹션별 Gemini 요약 생성
-def summarize_section(category_title, raw_data):
+def summarize_section(category_title, raw_data, max_retries=4):
     if not raw_data:
         return "수집된 데이터가 없거나 수집 중 오류가 발생했습니다."
 
